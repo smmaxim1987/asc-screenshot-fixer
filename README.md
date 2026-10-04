@@ -61,13 +61,21 @@ It also lists **every** screenshot in every set — locale, display type and del
 Requires **Node.js 20.11 or newer**.
 
 ```bash
-git clone <this-repo>
-cd apple-media
+git clone git@github.com:smmaxim1987/asc-screenshot-fixer.git
+cd asc-screenshot-fixer
 npm install
 npm run dev
 ```
 
 Then open **http://127.0.0.1:8787** and paste your Issuer ID, Key ID and `.p8` key into the form.
+
+![The interface: the problem explanation, the step-by-step key instructions, and the credentials form](ui-credentials-form.jpg)
+
+Everything is on a single page — the explanation of the problem, the step-by-step instructions for getting the key, and the credentials form itself:
+
+- **The problem** explains what a stuck screenshot is and why App Store Connect will not delete it.
+- **Where to get the data** lists the exact pages to visit, with links.
+- **Credentials** takes the Issuer ID, Key ID and the `.p8` key, with an **Upload .p8 file** button that reads the file from disk and fills in the Key ID automatically.
 
 Production build:
 
