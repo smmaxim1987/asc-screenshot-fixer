@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASC Screenshot Reset</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>ASC Screenshot Reset</h1>
+  <p class="sub">Find and delete stuck screenshots in App Store Connect — the ones its own UI refuses to remove.</p>
+
+  <section id="problem">
+    <h2>The problem <span class="hint">what this tool is for</span></h2>
+    <p class="lead">
+      An interrupted screenshot upload — a dropped connection, a closed tab, a crash — leaves a
+      red placeholder in <b>Media Manager</b> that spins forever:
+    </p>
+    <img
+      class="problem-shot"
+      src="/59d8c8a0-18dc-43b9-afe7-817903833c6d.png"
+      alt="Two red stuck screenshot placeholders in Media Manager, with Delete All greyed out">
+    <ul class="cant">
+      <li><b>Delete All is greyed out</b> — App Store Connect refuses, thinking uploads are still running.</li>
+      <li>Dragging them away does nothing, and the slot cannot be reused.</li>
+      <li>Waiting does not help: they will never finish on their own.</li>
+    </ul>
+    <p class="lead">
+      Behind the red slots sit <code>appScreenshot</code> resources in terminal states
+      (<code>AWAITING_UPLOAD</code>, <code>FAILED</code>, <code>EXPIRED</code>, <code>MISSING_UPLOAD</code>).
+      The API can delete them, so this tool does — then you upload the real screenshot again.
+    </p>
+    <p class="lead">
+      Known App Store Connect issue, discussed on the
+      <a href="https://developer.apple.com/forums/thread/848464?login=true&amp;r_s_legacy=true&amp;page=1"
+         target="_blank" rel="noopener">Apple Developer Forums</a>.
+    </p>
+  </section>
+
+  <section id="guide">
+    <h2>Where to get the data <span class="hint">you only need to create the key once</span></h2>
+    <ol class="steps">
+      <li>
+        Open <a href="https://appstoreconnect.apple.com/access/integrations/api" target="_blank" rel="noopener">Users and Access → Integrations → App Store Connect API</a>
+        in App Store Connect (or <a href="https://appstoreconnect.apple.com/access/integrations" target="_blank" rel="noopener">the same section</a>).
+      </li>
+      <li>
+        Pick the <b>Team Keys</b> tab (a shared team key, recommended) or <b>Individual Keys</b>
+        (a key tied to one person) and click <b>+</b>. Then choose a role —
+        <b>Developer</b> is enough to delete screenshots, Admin is not required.
+      </li>
+      <li>
+        Give the key a name (for example <code>ScreenshotReset</code>) and click <b>Generate</b>.
+      </li>
+      <li>
+        <b>Download the <code>AuthKey_XXXXXXXXXX.p8</code> file immediately</b> — Apple shows it once and cannot show it again.
+        Store it somewhere safe: <code>open -a TextEdit Downloads/AuthKey_XXXX.p8</code>.
+      </li>
+      <li>
+        Copy the <b>Key ID</b> and <b>Issuer ID</b>. The Issuer ID is shared by the whole team; every key has its own Key ID.
+        Where to look:
+        <b>Team Key</b> — Users and Access → Integrations → Team Keys.
+        <b>Individual Key</b> — Users and Access → People, then your own profile → Individual API Key.
+      </li>
+      <li>
+        Select the key type in the form below and paste the values. <b>No Admin role needed</b> — Developer is enough.
+      </li>
+    </ol>
+    <div class="note">
+      <b>Where to find the Bundle ID (optional):</b>
+      App Store Connect → <b>My Apps</b> → pick the app → <b>App Information</b> → the <b>Bundle ID</b> row.
+      You can skip it — the app will be picked from a dropdown instead.
+    </div>
+    <div class="note">
+      <b>Where to paste the private key:</b> a <code>.p8</code> file is plain text. Open it in a text editor,
+      copy <b>the entire contents</b> including the
+      <code>-----BEGIN PRIVATE KEY-----</code> and <code>-----END PRIVATE KEY-----</code> lines,
+      and paste them into the field below. You can also just pick the file — the server reads it for you.
+    </div>
+  </section>
+
+  <section id="auth">
+    <h2>Credentials</h2>
+    <div id="auth-msg"></div>
+    <label>
+      <span>Key type</span>
+      <select id="keyKind">
+        <option value="team">Team Key — shared team key (recommended)</option>
+        <option value="individual">Individual Key — my personal key</option>
+      </select>
+      <i class="hint" id="keyKind-hint"></i>
+    </label>
+    <div class="row">
+      <label>
+        <span>Issuer ID <i class="where">Users and Access → Integrations</i></span>
+        <input id="issuerId" placeholder="57246542-96fe-1a63-e053-0824d011072a" autocomplete="off">
+        <i class="hint">The UUID shown at the top of the API keys page</i>
+      </label>
+      <label>
+        <span>Key ID <i class="where">next to the key name</i></span>
+        <input id="keyId" placeholder="2X9R4HXF34" autocomplete="off">
+        <i class="hint">10 characters, matching the file name <code>AuthKey_2X9R4HXF34.p8</code></i>
+      </label>
+    </div>
+    <label>
+      <span>Private key — the contents of <code>AuthKey_XXXXXXXXXX.p8</code></span>
+      <textarea id="privateKey" placeholder="-----BEGIN PRIVATE KEY-----&#10;MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgevZzL1gdAFr88hb2&#10;-----END PRIVATE KEY-----" spellcheck="false"></textarea>
+      <i class="hint">The file can only be downloaded once. Upload it here, or paste the whole contents.</i>
+      <input type="file" id="keyFile" accept=".p8,.pem,.txt" hidden>
+      <div class="actions" style="margin-top:8px">
+        <button type="button" id="pick-file">Upload .p8 file</button>
+        <span id="file-name" class="hint"></span>
+      </div>
+    </label>
+    <label>
+      <span>Bundle ID of the app (optional — you can pick it later)</span>
+      <input id="bundleId" placeholder="com.example.myapp" autocomplete="off">
+      <i class="hint">App Store Connect → My Apps → your app → App Information</i>
+    </label>
+    <div class="actions">
+      <button class="primary" id="connect">Connect</button>
+      <button id="diagnose">Check key</button>
+      <span class="sub" style="margin:0">The key is kept in server memory only and is never written to disk.</span>
+    </div>
+    <div id="diag-msg"></div>
+    <div id="diag-report" class="hidden"></div>
+  </section>
+
+  <section id="scan-section" class="hidden">
+    <h2>Scan</h2>
+    <div id="scan-msg"></div>
+    <label><span>App</span><select id="app-select"></select></label>
+    <div class="actions">
+      <button class="primary" id="scan">Scan screenshots</button>
+      <button id="logout">Disconnect</button>
+    </div>
+    <details class="usage">
+      <summary>How to use it</summary>
+      <ol class="steps">
+        <li>Pick an app and click <b>Scan</b> — every screenshot is listed by locale and display type.</li>
+        <li>
+          A red <span class="badge stuck">failed</span> badge marks a stuck screenshot that needs deleting.
+          A yellow <span class="badge processing">processing</span> one is fresh and usually clears itself within minutes.
+          A green <span class="badge ok">ready</span> one works and must be left alone.
+        </li>
+        <li>Tick the ones you need, or click <b>Select all stuck</b>.</li>
+        <li>Click <b>Delete selected</b> and confirm — this issues <code>DELETE /v1/appScreenshots</code>.</li>
+        <li>
+          Afterwards <b>re-upload the images manually</b> through App Store Connect:
+          no backup of the files is made, only the asset in App Store Connect is removed.
+        </li>
+      </ol>
+    </details>
+  </section>
+
+  <section id="results-section" class="hidden">
+    <h2>Results</h2>
+    <div class="stats" id="stats"></div>
+    <div class="actions" style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="select-all-stuck" style="width:auto"> Select all stuck</label>
+      <button id="rescan">Refresh</button>
+    </div>
+    <div id="sets"></div>
+  </section>
+</div>
+
+<div class="sticky-bar" id="action-bar">
+  <span class="count">Selected: <b id="selected-count">0</b></span>
+  <div class="actions">
+    <button class="danger" id="delete">Delete selected</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
